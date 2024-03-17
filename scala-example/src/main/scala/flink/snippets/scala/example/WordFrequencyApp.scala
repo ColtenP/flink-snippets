@@ -1,5 +1,6 @@
 package flink.snippets.scala.example
 
+import flink.snippets.scala.example.model.WordFrequency
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
@@ -11,10 +12,7 @@ import org.apache.flink.util.Collector
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-// Our case class that will be used to reduce down our words into their counts
-case class WordFrequency(word: String, count: Int)
-
-object App {
+object WordFrequencyApp {
   // Used to provide the runtime, if you were running this on an actual flink cluster,
   // then this would not be needed, but we're doing this for testing sakes!
   private val flinkCluster: MiniClusterWithClientResource =
@@ -41,16 +39,20 @@ object App {
 
     val wordFrequency = sentences
       // Take our sentences, lowercase them, split them apart by spaces,
-      // drop the final character of the string (to remove the period),
+      // remove any non-letter characters (remove the period),
       // then collect them out as a WordFrequency with a count of 1
-      .flatMap((sentence: String, out: Collector[WordFrequency]) => {
-        sentence
-          .toLowerCase()
-          .split(' ')
-          .map(_.dropRight(1))
-          .map(word => WordFrequency(word, count = 1))
-          .foreach(out.collect)
-      }, TypeInformation.of(classOf[WordFrequency]))
+      .flatMap(
+        (sentence: String, out: Collector[WordFrequency]) => {
+          sentence
+            .toLowerCase()
+            .split(' ')
+            .map(_.replaceAll("[^a-zA-Z]", ""))
+            .map(word => WordFrequency(word, count = 1))
+            .foreach(out.collect)
+        },
+        // We need to supply the TypeInformation of the class we're collec
+        TypeInformation.of(classOf[WordFrequency])
+      )
       // Key the stream by the word of the WordFrequency case class
       .keyBy((frequency: WordFrequency) => frequency.word)
       // Window the stream into 10 second windows using TumblingProcessingTime
@@ -59,15 +61,16 @@ object App {
       .reduce((accumulator: WordFrequency, frequency: WordFrequency) =>
         accumulator.copy(count = accumulator.count + frequency.count)
       )
+
+    // For every word frequency we see, print out the results to the console
+    wordFrequency
       // Execute the code and collect it to an iterator, then convert it as a scala seq
       .executeAndCollect().asScala.toSeq
       // We only want words that were seen more than once, then sort descending by count
       .filter(_.count > 1)
       .sortBy(- _.count)
-
-    // For every word frequency we see, print out the results to the console
-    wordFrequency.foreach { frequency =>
-      Console.println(s"""Word "${frequency.word}" was seen ${frequency.count} times.""")
-    }
+      .foreach { frequency =>
+        Console.println(s"""Word "${frequency.word}" was seen ${frequency.count} times.""")
+      }
   }
 }
