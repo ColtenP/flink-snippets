@@ -50,7 +50,7 @@ object WordFrequencyApp {
             .map(word => WordFrequency(word, count = 1))
             .foreach(out.collect)
         },
-        // We need to supply the TypeInformation of the class we're collec
+        // We need to supply the TypeInformation of the class we're collecting
         TypeInformation.of(classOf[WordFrequency])
       )
       // Key the stream by the word of the WordFrequency case class
