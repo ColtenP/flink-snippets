@@ -30,23 +30,21 @@ object WordFrequencyApp {
 
     // Collect a few sentences into a Flink Source so we can break them down to find word frequency
     val sentences = env.fromElements(
-      "The cat quietly prowled through the dark alley.",
-      "Raindrops softly tapped against the windowpane.",
-      "Birds chirped melodiously in the early morning light.",
-      "The river gently flowed beneath the old stone bridge.",
-      "Leaves rustled softly in the autumn breeze."
+      "The cat quietly prowled through the dark alley",
+      "Raindrops softly tapped against the windowpane",
+      "Birds chirped melodiously in the early morning light",
+      "The river gently flowed beneath the old stone bridge",
+      "Leaves rustled softly in the autumn breeze"
     )
 
     val wordFrequency = sentences
       // Take our sentences, lowercase them, split them apart by spaces,
-      // remove any non-letter characters (remove the period),
       // then collect them out as a WordFrequency with a count of 1
       .flatMap(
         (sentence: String, out: Collector[WordFrequency]) => {
           sentence
             .toLowerCase()
             .split(' ')
-            .map(_.replaceAll("[^a-zA-Z]", ""))
             .map(word => WordFrequency(word, count = 1))
             .foreach(out.collect)
         },
