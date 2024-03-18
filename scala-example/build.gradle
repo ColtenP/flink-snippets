@@ -44,5 +44,5 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = 'flink.snippets.scala.example.App'
+    mainClass = 'flink.snippets.scala.example.WordFrequencyApp'
 }
