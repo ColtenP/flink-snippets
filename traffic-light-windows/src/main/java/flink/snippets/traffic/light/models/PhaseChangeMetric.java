@@ -1,5 +1,8 @@
 package flink.snippets.traffic.light.models;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.UUID;
 
 public class PhaseChangeMetric {
@@ -11,8 +14,8 @@ public class PhaseChangeMetric {
 
   public PhaseChangeMetric(UUID intersectionId, Integer phases, Integer emergencyPhases) {
     this.intersectionId = intersectionId;
-    this.windowStart = Long.MIN_VALUE;
-    this.windowEnd = Long.MAX_VALUE;
+    this.windowStart = null;
+    this.windowEnd = null;
     this.phases = phases;
     this.emergencyPhases = emergencyPhases;
   }
@@ -23,5 +26,14 @@ public class PhaseChangeMetric {
     this.windowEnd = windowEnd;
     this.phases = phases;
     this.emergencyPhases = emergencyPhases;
+  }
+
+  @Override
+  public String toString() {
+    try {
+      return new ObjectMapper().writeValueAsString(this);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

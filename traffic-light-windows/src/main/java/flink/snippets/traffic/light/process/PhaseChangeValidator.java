@@ -1,6 +1,6 @@
 package flink.snippets.traffic.light.process;
 
-import flink.snippets.traffic.light.models.IntersectionEvent;
+import flink.snippets.traffic.light.models.TrafficLightPhaseEvent;
 import flink.snippets.traffic.light.models.PhaseChangeViolation;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -10,9 +10,9 @@ import org.apache.flink.util.Collector;
 
 import java.util.UUID;
 
-public class PhaseChangeValidator extends KeyedProcessFunction<UUID, IntersectionEvent, PhaseChangeViolation> {
+public class PhaseChangeValidator extends KeyedProcessFunction<UUID, TrafficLightPhaseEvent, PhaseChangeViolation> {
 
-  public ValueState<IntersectionEvent> lastSeenEventState;
+  public ValueState<TrafficLightPhaseEvent> lastSeenEventState;
 
   @Override
   public void open(Configuration parameters) {
@@ -20,16 +20,16 @@ public class PhaseChangeValidator extends KeyedProcessFunction<UUID, Intersectio
         .getState(
             new ValueStateDescriptor<>(
                 "LastSeenEvent",
-                IntersectionEvent.class
+                TrafficLightPhaseEvent.class
             )
         );
   }
 
   @Override
-  public void processElement(IntersectionEvent event,
-                             KeyedProcessFunction<UUID, IntersectionEvent, PhaseChangeViolation>.Context ctx,
+  public void processElement(TrafficLightPhaseEvent event,
+                             KeyedProcessFunction<UUID, TrafficLightPhaseEvent, PhaseChangeViolation>.Context ctx,
                              Collector<PhaseChangeViolation> out) throws Exception {
-    IntersectionEvent lastSeenEvent = lastSeenEventState.value();
+    TrafficLightPhaseEvent lastSeenEvent = lastSeenEventState.value();
     if (lastSeenEvent == null) {
       lastSeenEventState.update(event);
       return;

@@ -1,12 +1,13 @@
 package flink.snippets.traffic.light;
 
-import flink.snippets.traffic.light.models.IntersectionEvent;
+import flink.snippets.traffic.light.models.TrafficLightPhaseEvent;
 import flink.snippets.traffic.light.models.PhaseChangeMetric;
 import flink.snippets.traffic.light.process.Jsonifier;
-import flink.snippets.traffic.light.process.PhaseChangeValidator;
-import flink.snippets.traffic.light.sources.IntersectionEventGenerator;
+import flink.snippets.traffic.light.sources.TrafficLightPhaseEventGenerator;
 import flink.snippets.traffic.light.window.PhaseChangeMetricReducer;
 import flink.snippets.traffic.light.window.PhaseChangeMetricWindowFunction;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
@@ -24,9 +25,7 @@ public class IncorrectTrafficLightApp {
         runFlow();
     }
 
-    public static void runFlow() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
+    public static void configureCheckpoints(StreamExecutionEnvironment env) {
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointInterval(10000);
         env.getCheckpointConfig().setMinPauseBetweenCheckpoints(10000);
@@ -34,23 +33,23 @@ public class IncorrectTrafficLightApp {
         env.getCheckpointConfig().setTolerableCheckpointFailureNumber(Integer.MAX_VALUE);
         env.getCheckpointConfig().setCheckpointStorage(new Path("file:///tmp"));
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+    }
 
-        DataStream<IntersectionEvent> intersectionEvents = IntersectionEventGenerator.toSource(env);
+    public static void runFlow() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        configureCheckpoints(env);
 
-        intersectionEvents
-            .keyBy(event -> event.intersectionId)
-            .process(new PhaseChangeValidator())
-            .name("PhaseChangeValidator")
-            .process(new Jsonifier<>())
-            .name("PhaseChangeViolation-to-Json")
-            .sinkTo(
-                FileSink
-                    .forRowFormat(
-                        new Path("/tmp/phase-change-violations"),
-                        new SimpleStringEncoder<String>("utf-8")
-                    )
-                    .build()
-            );
+        DataStream<TrafficLightPhaseEvent> intersectionEvents = TrafficLightPhaseEventGenerator.toSource(
+            env,
+            WatermarkStrategy.
+                <TrafficLightPhaseEvent>forBoundedOutOfOrderness(Duration.ZERO)
+                .withTimestampAssigner(
+                    (SerializableTimestampAssigner<TrafficLightPhaseEvent>) (intersectionEvent, timestamp) ->
+                        intersectionEvent.eventTimestamp
+                ),
+            100_000,
+            25
+        );
 
         intersectionEvents
             .map(event -> new PhaseChangeMetric(

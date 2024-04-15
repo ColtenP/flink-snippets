@@ -32,5 +32,5 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = 'flink.snippets.traffic.light.IncorrectTrafficLightApp'
+    mainClass = 'flink.snippets.traffic.light.TrafficLightApp'
 }

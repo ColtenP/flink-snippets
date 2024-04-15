@@ -1,13 +1,15 @@
 package flink.snippets.traffic.light;
 
-import flink.snippets.traffic.light.models.IntersectionEvent;
+import flink.snippets.traffic.light.models.TrafficLightPhaseEvent;
 import flink.snippets.traffic.light.models.PhaseChangeMetric;
 import flink.snippets.traffic.light.process.Jsonifier;
 import flink.snippets.traffic.light.process.PhaseChangeValidator;
 import flink.snippets.traffic.light.process.SortEvents;
-import flink.snippets.traffic.light.sources.IntersectionEventGenerator;
+import flink.snippets.traffic.light.sources.TrafficLightPhaseEventGenerator;
 import flink.snippets.traffic.light.window.PhaseChangeMetricReducer;
 import flink.snippets.traffic.light.window.PhaseChangeMetricWindowFunction;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
@@ -36,28 +38,17 @@ public class TrafficLightApp {
         env.getCheckpointConfig().setCheckpointStorage(new Path("file:///tmp"));
         env.getCheckpointConfig().setExternalizedCheckpointCleanup(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        DataStream<IntersectionEvent> unorderedIntersectionEvents = IntersectionEventGenerator.toSource(env);
+        DataStream<TrafficLightPhaseEvent> unorderedIntersectionEvents = TrafficLightPhaseEventGenerator.toSource(
+            env,
+            WatermarkStrategy.
+                <TrafficLightPhaseEvent>forBoundedOutOfOrderness(Duration.ofMinutes(10))
+                .withTimestampAssigner(
+                    (SerializableTimestampAssigner<TrafficLightPhaseEvent>) (intersectionEvent, timestamp) ->
+                        intersectionEvent.eventTimestamp
+                )
+        );
 
-        DataStream<IntersectionEvent> intersectionEvents = unorderedIntersectionEvents
-            .keyBy(event -> event.intersectionId)
-            .process(new SortEvents());
-
-        intersectionEvents
-            .keyBy(event -> event.intersectionId)
-            .process(new PhaseChangeValidator())
-            .name("PhaseChangeValidator")
-            .process(new Jsonifier<>())
-            .name("PhaseChangeViolation-to-Json")
-            .sinkTo(
-                FileSink
-                    .forRowFormat(
-                        new Path("/tmp/phase-change-violations"),
-                        new SimpleStringEncoder<String>("utf-8")
-                    )
-                    .build()
-            );
-
-        intersectionEvents
+        unorderedIntersectionEvents
             .map(event -> new PhaseChangeMetric(
                 event.intersectionId,
                 1,
