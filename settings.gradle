@@ -13,3 +13,4 @@ plugins {
 rootProject.name = 'flink-snippets'
 include('scala-example')
 include('traffic-light-windows')
+include('pyflink-table-api-simple')
