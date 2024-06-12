@@ -59,7 +59,7 @@ public class AuthenticationNotifier {
     );
 
     DataStream<LoginNotification> loginNotification = loginMetadata
-        .keyBy((KeySelector<LoginMetadata, UUID>) loginMetadata1 -> loginMetadata1.userId)
+        .keyBy((KeySelector<LoginMetadata, UUID>) metadata -> metadata.userId)
         .process(new LoginNotifier());
 
     loginNotification

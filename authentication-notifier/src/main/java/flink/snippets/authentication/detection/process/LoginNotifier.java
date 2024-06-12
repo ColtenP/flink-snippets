@@ -26,9 +26,6 @@ public class LoginNotifier extends KeyedProcessFunction<UUID, LoginMetadata, Log
         .getState(new ValueStateDescriptor<>("LocationHistory", TypeInformation.of(new TypeHint<>() {})));
     this.deviceHistoryState = getRuntimeContext()
         .getState(new ValueStateDescriptor<>("DeviceHistory", TypeInformation.of(new TypeHint<>() {})));
-
-    this.locationHistoryState.update(new HashSet<>());
-    this.deviceHistoryState.update(new HashSet<>());
   }
 
   @Override
@@ -39,6 +36,16 @@ public class LoginNotifier extends KeyedProcessFunction<UUID, LoginMetadata, Log
   ) throws Exception {
     Set<UUID> locationHistory = locationHistoryState.value();
     Set<UUID> deviceHistory = deviceHistoryState.value();
+
+    if (locationHistory == null) {
+      locationHistory = new HashSet<>();
+      locationHistoryState.update(locationHistory);
+    }
+
+    if (deviceHistory == null) {
+      deviceHistory = new HashSet<>();
+      deviceHistoryState.update(deviceHistory);
+    }
 
     boolean knownLocation = locationHistory.contains(loginMetadata.locationId);
     boolean knownDevice = deviceHistory.contains(loginMetadata.deviceId);
