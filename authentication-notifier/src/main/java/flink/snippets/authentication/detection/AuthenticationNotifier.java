@@ -1,5 +1,6 @@
 package flink.snippets.authentication.detection;
 
+import flink.snippets.authentication.detection.models.BootstrapUserLoginData;
 import flink.snippets.authentication.detection.models.LoginMetadata;
 import flink.snippets.authentication.detection.models.LoginNotification;
 import flink.snippets.authentication.detection.process.Jsonifier;
@@ -20,6 +21,7 @@ import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class AuthenticationNotifier {
@@ -58,8 +60,13 @@ public class AuthenticationNotifier {
         "LoginMetadata"
     );
 
+    // Bootstrap Stream for User Historical Data, for this example there is not any data to bootstrap,
+    // but the code reflects how we can bootstrap state
+    DataStream<BootstrapUserLoginData> bootstrapStream = env.fromCollection(new ArrayList<>());
+
     DataStream<LoginNotification> loginNotification = loginMetadata
         .keyBy((KeySelector<LoginMetadata, UUID>) metadata -> metadata.userId)
+        .connect(bootstrapStream.keyBy((KeySelector<BootstrapUserLoginData, UUID>) metadata -> metadata.userId))
         .process(new LoginNotifier());
 
     loginNotification

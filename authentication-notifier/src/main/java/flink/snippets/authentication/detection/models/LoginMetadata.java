@@ -15,14 +15,5 @@ public class LoginMetadata {
     this.locationId = locationId;
     this.deviceId = deviceId;
     this.eventTimestamp = System.currentTimeMillis();
-
-    System.out.printf(
-        "LoginMetadata(transactionId=%s, userId=%s, locationId=%s, deviceId=%s, eventTimestamp=%s)%n",
-        transactionId,
-        userId,
-        locationId,
-        deviceId,
-        eventTimestamp
-    );
   }
 }

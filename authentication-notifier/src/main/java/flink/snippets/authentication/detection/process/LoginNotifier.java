@@ -1,5 +1,6 @@
 package flink.snippets.authentication.detection.process;
 
+import flink.snippets.authentication.detection.models.BootstrapUserLoginData;
 import flink.snippets.authentication.detection.models.LoginMetadata;
 import flink.snippets.authentication.detection.models.LoginNotification;
 import org.apache.flink.api.common.state.ValueState;
@@ -7,14 +8,14 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-public class LoginNotifier extends KeyedProcessFunction<UUID, LoginMetadata, LoginNotification> {
+public class LoginNotifier extends KeyedCoProcessFunction<UUID, LoginMetadata, BootstrapUserLoginData, LoginNotification> {
   private ValueState<Set<UUID>> locationHistoryState;
   private ValueState<Set<UUID>> deviceHistoryState;
 
@@ -29,9 +30,9 @@ public class LoginNotifier extends KeyedProcessFunction<UUID, LoginMetadata, Log
   }
 
   @Override
-  public void processElement(
+  public void processElement1(
       LoginMetadata loginMetadata,
-      KeyedProcessFunction<UUID, LoginMetadata, LoginNotification>.Context context,
+      KeyedCoProcessFunction<UUID, LoginMetadata, BootstrapUserLoginData, LoginNotification>.Context context,
       Collector<LoginNotification> collector
   ) throws Exception {
     Set<UUID> locationHistory = locationHistoryState.value();
@@ -67,6 +68,30 @@ public class LoginNotifier extends KeyedProcessFunction<UUID, LoginMetadata, Log
           knownLocation,
           knownDevice
       ));
+    }
+  }
+
+  @Override
+  public void processElement2(
+      BootstrapUserLoginData bootstrapUserLoginData,
+      KeyedCoProcessFunction<UUID, LoginMetadata, BootstrapUserLoginData, LoginNotification>.Context context,
+      Collector<LoginNotification> collector
+  ) throws Exception {
+    Set<UUID> locationHistory = locationHistoryState.value();
+    Set<UUID> deviceHistory = deviceHistoryState.value();
+
+    if (locationHistory == null) {
+      locationHistoryState.update(bootstrapUserLoginData.locations);
+    } else {
+      locationHistory.addAll(bootstrapUserLoginData.locations);
+      locationHistoryState.update(locationHistory);
+    }
+
+    if (deviceHistory == null) {
+      deviceHistoryState.update(bootstrapUserLoginData.devices);
+    } else {
+      deviceHistory.addAll(bootstrapUserLoginData.devices);
+      locationHistoryState.update(deviceHistory);
     }
   }
 }
