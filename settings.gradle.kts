@@ -7,12 +7,17 @@
 
 plugins {
     // Apply the foojay-resolver plugin to allow automatic download of JDKs
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+    id("org.gradle.toolchains.foojay-resolver-convention") version "0.7.0"
 }
 
-rootProject.name = 'flink-snippets'
-include('scala-example')
-include('traffic-light-windows')
-include('pyflink-message-metrics')
-include('pyflink-table-api-simple')
-include('authentication-notifier')
+rootProject.name = "flink-snippets"
+
+include(
+    "scala-example",
+    "traffic-light-windows",
+    "pyflink-message-metrics",
+    "pyflink-table-api-simple",
+    "authentication-notifier",
+    "sql-join",
+    "invoice-currency-converter"
+)

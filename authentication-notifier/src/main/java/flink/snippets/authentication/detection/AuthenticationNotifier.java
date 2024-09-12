@@ -22,6 +22,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 
 public class AuthenticationNotifier {
@@ -61,8 +63,11 @@ public class AuthenticationNotifier {
     );
 
     // Bootstrap Stream for User Historical Data, for this example there is not any data to bootstrap,
-    // but the code reflects how we can bootstrap state
-    DataStream<BootstrapUserLoginData> bootstrapStream = env.fromCollection(new ArrayList<>());
+    // but the code reflects how we can bootstrap state, we need a random item because Flink does not like
+    // empty collections to make a stream
+    DataStream<BootstrapUserLoginData> bootstrapStream = env.fromCollection(
+        List.of(new BootstrapUserLoginData(UUID.randomUUID(), new HashSet<>(), new HashSet<>()))
+    );
 
     DataStream<LoginNotification> loginNotification = loginMetadata
         .keyBy((KeySelector<LoginMetadata, UUID>) metadata -> metadata.userId)
