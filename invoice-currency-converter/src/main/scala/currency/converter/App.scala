@@ -1,7 +1,7 @@
 package currency.converter
 
 import currency.converter.models.{CurrencyConversion, InvoiceMetadata}
-import currency.converter.process.InvoiceMetadataConverter
+import currency.converter.process.{InvoiceCurrencyConverter, InvoiceMetadataEnricher}
 import currency.converter.sources.{CurrencyMappingGenerator, InvoiceMetadataGenerator}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.CheckpointingMode
@@ -27,12 +27,16 @@ object App {
       .flatMap((currencyMapping: List[CurrencyConversion], out: Collector[CurrencyConversion]) => currencyMapping.foreach(out.collect))
       .returns(TypeInformation.of(classOf[CurrencyConversion]))
       .name("currency-conversions")
-      .broadcast(InvoiceMetadataConverter.CURRENCY_CONVERSION_STATE_DESCRIPTOR)
+      .broadcast(InvoiceMetadataEnricher.CURRENCY_CONVERSION_STATE_DESCRIPTOR)
 
-    val invoiceMetadataInUSD = invoiceMetadata
+    val invoiceMetadataWithConversions = invoiceMetadata
       .keyBy((i: InvoiceMetadata) => i.id)
       .connect(currencyConversions)
-      .process(new InvoiceMetadataConverter())
+      .process(new InvoiceMetadataEnricher())
+      .name("invoices-with-conversions")
+
+    val invoiceMetadataInUSD = invoiceMetadataWithConversions
+      .process(new InvoiceCurrencyConverter())
       .name("invoices-in-USD")
 
     invoiceMetadataInUSD.print("converted-invoices")
