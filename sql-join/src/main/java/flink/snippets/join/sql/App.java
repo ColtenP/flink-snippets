@@ -6,6 +6,7 @@ import flink.snippets.join.sql.sources.VehicleEventGenerator;
 import flink.snippets.join.sql.sources.VehicleTelemetryGenerator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.io.IOException;
@@ -24,10 +25,35 @@ public class App {
     DataStream<VehicleEvent> vehicleEvents = VehicleEventGenerator.toSource(env);
     DataStream<VehicleTelemetry> vehicleTelemetry = VehicleTelemetryGenerator.toSource(env);
 
-    tenv.createTemporaryView("vehicle_events", vehicleEvents);
+    tenv.createTemporaryView(
+        "vehicle_events",
+        vehicleEvents
+    );
     tenv.createTemporaryView("vehicle_telemetry", vehicleTelemetry);
 
-    String sql = readResource("/stream.sql");
+    tenv.from("vehicle_events").printSchema();
+    tenv.from("vehicle_telemetry").printSchema();
+
+    String sql =
+        "WITH vehicle_event_telemetry AS (\n" +
+        "    SELECT\n" +
+        "        ve.0.vehicleId,\n" +
+        "        ve.0.eventType,\n" +
+        "        vt.0.speed,\n" +
+        "        vt.0.latitude,\n" +
+        "        vt.0.longitude,\n" +
+        "        ve.0.eventTimestamp,\n" +
+        "        vt.0.telemetryTimestamp\n" +
+        "    FROM vehicle_events ve, vehicle_telemetry vt\n" +
+        "    WHERE\n" +
+        "        ve.0.vehicleId = vt.0.vehicleId AND\n" +
+        "        ve.0.eventTimestamp BETWEEN vt.0.telemetryTimestamp - INTERVAL '5' SECOND AND\n" +
+        "        vt.0.telemetryTimestamp\n" +
+        ")\n" +
+        "SELECT\n" +
+        "    *\n" +
+        "FROM vehicle_event_telemetry vet\n" +
+        "WHERE vet.0.speed IS NOT NULL";
     System.out.println(sql);
 
     tenv.executeSql(sql);

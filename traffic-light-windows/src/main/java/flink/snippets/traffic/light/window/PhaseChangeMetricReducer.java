@@ -8,6 +8,8 @@ public class PhaseChangeMetricReducer implements ReduceFunction<PhaseChangeMetri
   public PhaseChangeMetric reduce(PhaseChangeMetric accumulator, PhaseChangeMetric metric) {
     return new PhaseChangeMetric(
         accumulator.intersectionId,
+        Math.min(accumulator.windowStart, metric.windowStart),
+        Math.max(accumulator.windowEnd, metric.windowEnd),
         accumulator.phases + metric.phases,
         accumulator.emergencyPhases + metric.emergencyPhases
     );
