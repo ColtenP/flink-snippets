@@ -10,13 +10,16 @@ import flink.snippets.traffic.light.window.PhaseChangeMetricReducer;
 import flink.snippets.traffic.light.window.PhaseChangeMetricWindowFunction;
 import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
@@ -48,7 +51,7 @@ public class TrafficLightApp {
                 )
         );
 
-        unorderedIntersectionEvents
+        DataStream<PhaseChangeMetric> metrics = unorderedIntersectionEvents
             .map(event -> new PhaseChangeMetric(
                 event.intersectionId,
                 1,
@@ -56,18 +59,19 @@ public class TrafficLightApp {
             ))
             .name("IntersectionEvent-to-PhaseChangeMetric")
             .keyBy(event -> event.intersectionId)
-            .window(TumblingEventTimeWindows.of(Time.minutes(5)))
+            .window(SlidingEventTimeWindows.of(Time.minutes(5), Time.minutes(1)))
+            .reduce(new PhaseChangeMetricReducer(), new PhaseChangeMetricWindowFunction());
+
+        metrics
+            .keyBy(event -> event.intersectionId)
+            .reduce(new PhaseChangeMetricReducer())
+            .print("reduced-metrics");
+
+        metrics
+            .keyBy(event -> event.intersectionId)
+            .window(TumblingEventTimeWindows.of(Time.minutes(15)))
             .reduce(new PhaseChangeMetricReducer(), new PhaseChangeMetricWindowFunction())
-            .process(new Jsonifier<>())
-            .name("PhaseChangeMetric-to-Json")
-            .sinkTo(
-                FileSink
-                    .forRowFormat(
-                        new Path("/tmp/phase-change-metrics"),
-                        new SimpleStringEncoder<String>("utf-8")
-                    )
-                    .build()
-            );
+            .print("aggregated-metrics");
 
         env.execute("TrafficLightMetrics");
     }

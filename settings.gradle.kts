@@ -19,5 +19,6 @@ include(
     "pyflink-table-api-simple",
     "authentication-notifier",
     "sql-join",
-    "invoice-currency-converter"
+    "invoice-currency-converter",
+    "stock-aggregator"
 )

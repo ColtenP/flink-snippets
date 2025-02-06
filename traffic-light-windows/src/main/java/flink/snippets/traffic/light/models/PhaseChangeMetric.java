@@ -14,8 +14,8 @@ public class PhaseChangeMetric {
 
   public PhaseChangeMetric(UUID intersectionId, Integer phases, Integer emergencyPhases) {
     this.intersectionId = intersectionId;
-    this.windowStart = null;
-    this.windowEnd = null;
+    this.windowStart = Long.MIN_VALUE;
+    this.windowEnd = Long.MAX_VALUE;
     this.phases = phases;
     this.emergencyPhases = emergencyPhases;
   }
